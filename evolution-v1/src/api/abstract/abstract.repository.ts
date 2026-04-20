@@ -41,7 +41,7 @@ export abstract class Repository implements IRepository {
 
       return { message: 'create - success' };
     } finally {
-      create.data = undefined;
+      (create as any).data = undefined;
     }
   };
 
