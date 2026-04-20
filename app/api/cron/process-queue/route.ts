@@ -2,13 +2,25 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import * as admin from "firebase-admin";
 
-const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://127.0.0.1:8080").replace(/\/$/, "");
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY ?? "BQYHJGJHJ";
+let EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://127.0.0.1:8080").trim().replace(/\/$/, "");
+
+// Garante que a URL tenha um protocolo (evita erro de 'unknown scheme')
+if (EVOLUTION_API_URL && !EVOLUTION_API_URL.startsWith("http")) {
+  EVOLUTION_API_URL = `http://${EVOLUTION_API_URL}`;
+}
+
+const EVOLUTION_API_KEY = (process.env.EVOLUTION_API_KEY ?? "BQYHJGJHJ").trim();
 const PREFIX = "crm-vmm-";
 
 export async function GET() {
   try {
     console.log("[Worker] Sincronização avançada iniciada...");
+    
+    if (!adminDb) {
+      console.error("[Worker] Erro: adminDb não inicializado. Verifique as variáveis de ambiente.");
+      return NextResponse.json({ error: "Firebase não inicializado" }, { status: 500 });
+    }
+
     await syncAllEvolutionInstances();
 
     // Processamento de fila de campanhas
@@ -34,6 +46,13 @@ async function syncAllEvolutionInstances() {
     const res = await fetch(`${EVOLUTION_API_URL}/instance/fetchInstances`, {
       headers: { apikey: EVOLUTION_API_KEY }
     });
+    
+    if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[ChatSync] Fallback Evolution API (${res.status}):`, errText.substring(0, 100));
+        return;
+    }
+
     const instancesRaw = await res.json();
     if (!Array.isArray(instancesRaw)) return;
 
@@ -51,6 +70,9 @@ async function syncAllEvolutionInstances() {
         const chatsRes = await fetch(`${EVOLUTION_API_URL}/chat/findChats/${instanceName}`, {
           headers: { apikey: EVOLUTION_API_KEY }
         });
+        
+        if (!chatsRes.ok) continue;
+
         const allChats = await chatsRes.json();
         if (!Array.isArray(allChats)) continue;
 
@@ -106,6 +128,9 @@ async function syncAllEvolutionInstances() {
               headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
               body: JSON.stringify({ where: { remoteJid }, limit: 10 })
             });
+
+            if (!msgsRes.ok) continue;
+
             const msgsData = await msgsRes.json();
             const msgs = Array.isArray(msgsData) ? msgsData : (msgsData.messages || []);
             
