@@ -5,7 +5,7 @@ import { getAuthUserId } from "@/lib/auth-server";
 // POST /api/campanhas/[id]/start
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const userId = await getAuthUserId(req);
   if (!userId) {

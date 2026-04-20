@@ -1,22 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebase/client";
-import { collection, query, where, getDocs, limit, orderBy } from "firebase/firestore";
+import { adminDb } from "@/lib/firebase-admin";
+import { getAuthUserId } from "@/lib/auth-server";
 
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getAuthUserId(req);
+  if (!userId) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   const { id } = await params;
   
   try {
-    const q = query(
-      collection(db, "filaEnvio"),
-      where("campanhaId", "==", id),
-      where("status", "in", ["pendente", "enviando"]),
-      limit(1)
-    );
+    const snap = await adminDb.collection("filaEnvio")
+      .where("userId", "==", userId)
+      .where("campanhaId", "==", id)
+      .where("status", "in", ["pendente", "enviando"])
+      .limit(1)
+      .get();
 
-    const snap = await getDocs(q);
     if (snap.empty) {
       return NextResponse.json({ current: null });
     }

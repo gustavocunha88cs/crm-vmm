@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { adminDb } from "@/lib/firebase-admin";
+import { getAuthUserId } from "@/lib/auth-server";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getAuthUserId(req);
+  if (!userId) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
   try {
     const { id } = await params;
-    const filaCol = collection(db, "filaEnvio");
     
-    // Buscar todos os itens da fila para esta campanha
-    const q = query(
-      filaCol,
-      where("campanhaId", "==", id)
-      // Ordenar por agendamento ou envio se desejar, mas em local sem indice composto pode falhar
-    );
+    // Buscar todos os itens da fila para esta campanha com filtro de userId
+    const snap = await adminDb.collection("filaEnvio")
+      .where("userId", "==", userId)
+      .where("campanhaId", "==", id)
+      .get();
 
-    const snap = await getDocs(q);
     const results = snap.docs.map(d => ({
       id: d.id,
       ...d.data(),
