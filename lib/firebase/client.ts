@@ -17,6 +17,10 @@ if (getApps().length) {
   app = getApp();
 } else if (firebaseConfig.apiKey) {
   app = initializeApp(firebaseConfig);
+} else {
+  if (typeof window !== "undefined") {
+    console.error("Firebase Client Error: NEXT_PUBLIC_FIREBASE_API_KEY is missing. Check your environment variables.");
+  }
 }
 
 export const db = app ? getFirestore(app) : null as unknown as Firestore;

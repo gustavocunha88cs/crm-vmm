@@ -17,10 +17,22 @@ import { db } from "./client";
 import type { Lead, Tag, ScraperLead } from "@/types";
 
 // ─── Collection References ────────────────────────────────────────────────────
-export const leadsCol = () => collection(db, "leads");
-export const tagsCol = () => collection(db, "tags");
-export const campanhasCol = () => collection(db, "campanhas");
-export const filaEnvioCol = () => collection(db, "filaEnvio");
+export const leadsCol = () => {
+  if (!db) throw new Error("Firebase Firestore não inicializado.");
+  return collection(db, "leads");
+};
+export const tagsCol = () => {
+  if (!db) throw new Error("Firebase Firestore não inicializado.");
+  return collection(db, "tags");
+};
+export const campanhasCol = () => {
+  if (!db) throw new Error("Firebase Firestore não inicializado.");
+  return collection(db, "campanhas");
+};
+export const filaEnvioCol = () => {
+  if (!db) throw new Error("Firebase Firestore não inicializado.");
+  return collection(db, "filaEnvio");
+};
 
 // ─── Tags ─────────────────────────────────────────────────────────────────────
 

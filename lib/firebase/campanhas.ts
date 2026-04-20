@@ -23,8 +23,14 @@ import { db } from "./client";
 import type { Campanha, FilaEnvio } from "@/types/campanhas";
 
 // ─── Collection helpers ───────────────────────────────────────────────────────
-const campanhasCol = () => collection(db, "campanhas");
-const filaEnvioCol = () => collection(db, "filaEnvio");
+const campanhasCol = () => {
+  if (!db) throw new Error("Firebase Firestore não inicializado.");
+  return collection(db, "campanhas");
+};
+const filaEnvioCol = () => {
+  if (!db) throw new Error("Firebase Firestore não inicializado.");
+  return collection(db, "filaEnvio");
+};
 
 // ─── Campanhas CRUD ───────────────────────────────────────────────────────────
 

@@ -50,6 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen to Firebase auth state changes
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
@@ -68,6 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [pathname, router]);
 
   async function signIn(email: string, password: string) {
+    if (!auth) {
+      setError("Erro de configuração: Firebase Auth não inicializado.");
+      return;
+    }
     setError("");
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -79,6 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signUp(email: string, password: string) {
+    if (!auth) {
+      setError("Erro de configuração: Firebase Auth não inicializado.");
+      return;
+    }
     setError("");
     try {
       await createUserWithEmailAndPassword(auth, email, password);
@@ -90,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logOut() {
+    if (!auth) return;
     await signOut(auth);
     router.replace("/login");
   }
