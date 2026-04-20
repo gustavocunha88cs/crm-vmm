@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "echo \"Checking env vars...\" && [ -n \"$NEXT_PUBLIC_FIREBASE_API_KEY\" ] && echo \"API Key found\" || echo \"API Key MISSING\"",
     "build": "next build",
     "start": "next start",
     "start:prod": "npm run build && npm run start",
