@@ -1,0 +1,33 @@
+{
+  "name": "crm-vmm",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "start:prod": "npm run build && npm run start",
+    "worker": "node worker/index.js",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
+    "dotenv": "^17.4.2",
+    "firebase": "^12.12.0",
+    "firebase-admin": "^13.8.0",
+    "he": "^1.2.0",
+    "nanoid": "^5.1.9",
+    "next": "^16.2.4",
+    "papaparse": "^5.5.3",
+    "react": "^18",
+    "react-dom": "^18",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/he": "^1.2.3",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5"
+  }
+}
