@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getCampanhaAdmin, startCampanhaAdmin, getLeadsByIdsAdmin } from "@/lib/firebase/collections-admin";
 import { getAuthUserId } from "@/lib/auth-server";
