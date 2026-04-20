@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getLeadsAdmin, saveLeadsAdmin, deleteLeadsAdmin } from "@/lib/firebase/collections-admin";
 import { nanoid } from "nanoid";

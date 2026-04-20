@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase/client";
 import { doc, writeBatch, arrayUnion, arrayRemove } from "firebase/firestore";
