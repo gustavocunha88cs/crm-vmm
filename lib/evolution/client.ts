@@ -36,7 +36,13 @@ export interface InstanceStatus {
 
 // ── Base fetch ───────────────────────────────────────────────────────────────
 async function evoFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const url = `${BASE_URL.replace(/\/$/, "")}${path}`;
+  let sanitizedBaseUrl = BASE_URL.trim().replace(/\/$/, "");
+  
+  if (!sanitizedBaseUrl.startsWith("http")) {
+    sanitizedBaseUrl = `http://${sanitizedBaseUrl}`;
+  }
+
+  const url = `${sanitizedBaseUrl}${path}`;
 
   const res = await fetch(url, {
     ...options,
