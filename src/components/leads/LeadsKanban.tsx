@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 import { Lead, LeadStatus, LeadTemperature } from "@/types";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
@@ -61,7 +62,7 @@ export default function LeadsKanban({
 
     // Update in DB
     try {
-      await fetch(`/api/leads/${draggableId}`, {
+      await apiFetch(`/api/leads/${draggableId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),

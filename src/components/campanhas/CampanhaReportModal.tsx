@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 import type { Campanha } from "@/types/campanhas";
 
 interface ReportItem {
@@ -36,7 +37,7 @@ export default function CampanhaReportModal({
   async function fetchReport() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/campanhas/${campanha.id}/report`);
+      const res = await apiFetch(`/api/campanhas/${campanha.id}/report`);
       const data = await res.json();
       setItems(data.results || []);
     } catch {

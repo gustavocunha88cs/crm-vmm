@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 import type { Campanha } from "@/types/campanhas";
 
 interface CampanhaCardProps {
@@ -38,7 +39,7 @@ export default function CampanhaCard({
     if (campanha.status === "ativa") {
       const fetchCurrent = async () => {
         try {
-          const res = await fetch(`/api/campanhas/${campanha.id}/current-lead`);
+          const res = await apiFetch(`/api/campanhas/${campanha.id}/current-lead`);
           const data = await res.json();
           setCurrentLead(data.current || null);
         } catch {}

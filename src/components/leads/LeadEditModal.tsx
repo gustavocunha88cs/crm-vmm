@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 import type { Lead, Tag } from "@/types";
 
 interface LeadEditModalProps {
@@ -54,7 +55,7 @@ export default function LeadEditModal({
     setError("");
 
     try {
-      const res = await fetch(`/api/leads/${lead.id}`, {
+      const res = await apiFetch(`/api/leads/${lead.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
