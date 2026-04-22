@@ -33,8 +33,55 @@ export async function GET() {
       return NextResponse.json({ ok: true, message: "Sincronização concluída com sucesso" });
     }
 
-    // ... lógica de envio de campanha (mantida) ...
-    return NextResponse.json({ ok: true });
+    // 2. Processamento de fila de campanhas
+    const filaSnap = await adminDb.collection("filaEnvio")
+      .where("status", "==", "pendente")
+      .orderBy("agendadoPara", "asc")
+      .limit(3) // Processa 3 por vez para não estourar o tempo do serverless
+      .get();
+
+    if (filaSnap.empty) {
+      return NextResponse.json({ ok: true, message: "Fila vazia ou sincronização ok" });
+    }
+
+    console.log(`[Cron] Processando ${filaSnap.size} itens da fila...`);
+    
+    for (const doc of filaSnap.docs) {
+      const item = doc.data();
+      const instanceName = `crm-vmm-${item.userId.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase()}`;
+
+      try {
+        await doc.ref.update({ status: "enviando" });
+
+        const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instanceName}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
+          body: JSON.stringify({
+            number: item.phone,
+            textMessage: { text: item.mensagem }
+          })
+        });
+
+        if (!res.ok) throw new Error(`Evolution API error: ${res.status}`);
+
+        await doc.ref.update({
+          status: "enviado",
+          enviadoEm: admin.firestore.Timestamp.now()
+        });
+
+        // Atualiza contadores na campanha
+        const campRef = adminDb.collection("campanhas").doc(item.campanhaId);
+        await campRef.update({
+          "progresso.enviados": admin.firestore.FieldValue.increment(1)
+        });
+
+      } catch (err: any) {
+        console.error(`[Cron] Erro ao enviar para ${item.phone}:`, err.message);
+        await doc.ref.update({ status: "falhou", erro: err.message });
+      }
+    }
+
+    return NextResponse.json({ ok: true, processed: filaSnap.size });
   } catch (err: any) {
     console.error("Worker Error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

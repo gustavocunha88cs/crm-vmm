@@ -1,5 +1,5 @@
 node_modules
 .next
 .env*
-worker
+# worker folder removed from ignore to allow deployment
 scratch
