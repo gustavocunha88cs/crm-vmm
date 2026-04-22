@@ -61,17 +61,30 @@ async function processQueue() {
                 console.log(`[Worker] Enviando para ${item.leadNome || item.phone}...`);
 
                 // Disparo
-                const response = await axios.post(
-                    `${EVOLUTION_API_URL}/message/sendText/${instanceName}`,
-                    {
-                        number: item.phone,
-                        textMessage: { text: item.mensagem }
-                    },
-                    {
-                        headers: { apikey: EVOLUTION_API_KEY },
-                        timeout: 15000
-                    }
-                );
+                let response;
+                if (item.mediaUrl) {
+                    response = await axios.post(
+                        `${EVOLUTION_API_URL}/message/sendMedia/${instanceName}`,
+                        {
+                            number: item.phone,
+                            mediaMessage: {
+                                mediatype: "image",
+                                caption: item.mensagem,
+                                media: item.mediaUrl
+                            }
+                        },
+                        { headers: { apikey: EVOLUTION_API_KEY }, timeout: 20000 }
+                    );
+                } else {
+                    response = await axios.post(
+                        `${EVOLUTION_API_URL}/message/sendText/${instanceName}`,
+                        {
+                            number: item.phone,
+                            textMessage: { text: item.mensagem }
+                        },
+                        { headers: { apikey: EVOLUTION_API_KEY }, timeout: 15000 }
+                    );
+                }
 
                 const messageId = response.data?.key?.id || response.data?.messageId;
 
@@ -92,9 +105,20 @@ async function processQueue() {
 
                 // Atualiza campanha
                 if (item.campanhaId) {
-                    await db.collection("campanhas").doc(item.campanhaId).update({
+                    const campRef = db.collection("campanhas").doc(item.campanhaId);
+                    await campRef.update({
                         "progresso.enviados": admin.firestore.FieldValue.increment(1)
                     }).catch(() => {});
+
+                    // Verifica conclusão
+                    const campSnap = await campRef.get();
+                    const campData = campSnap.data();
+                    if (campData && campData.progresso.enviados >= campData.progresso.total) {
+                        await campRef.update({
+                            status: "concluida",
+                            concludedAt: admin.firestore.Timestamp.now()
+                        });
+                    }
                 }
 
                 console.log(`[Worker] Sucesso: ${item.phone}`);

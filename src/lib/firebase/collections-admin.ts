@@ -226,6 +226,10 @@ export async function startCampanhaAdmin(
   existingQueue.docs.forEach(doc => deleteBatch.delete(doc.ref));
   await deleteBatch.commit();
 
+  // Pegamos a campanha para saber se tem imagem
+  const campSnap = await adminDb.collection("campanhas").doc(campanhaId).get();
+  const mediaUrl = campSnap.data()?.mediaUrl || null;
+
   const batch = adminDb.batch();
   const shuffledLeads = [...leads].sort(() => Math.random() - 0.5);
   
@@ -242,7 +246,7 @@ export async function startCampanhaAdmin(
     const mensagem = rawMsg.replace(/\{nome\}/gi, lead.title).replace(/\{empresa\}/gi, lead.title);
     const agendadoPara = admin.firestore.Timestamp.fromMillis(now + delayAcumulado * 1000);
     const filaRef = adminDb.collection("filaEnvio").doc();
-    
+
     batch.set(filaRef, {
       userId,
       campanhaId,
@@ -250,6 +254,7 @@ export async function startCampanhaAdmin(
       leadNome: lead.title,
       phone: lead.phone,
       mensagem,
+      mediaUrl,
       status: "pendente",
       tentativas: 0,
       agendadoPara,

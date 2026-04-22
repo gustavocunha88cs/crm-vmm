@@ -74,20 +74,24 @@ export default function CampanhaReportModal({
                   <th>Lead</th>
                   <th>Telefone</th>
                   <th>Status</th>
-                  <th>Horário</th>
+                  <th>Agendado</th>
+                  <th>Disparado</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => {
-                  const date = item.enviadoEm ? item.enviadoEm.seconds * 1000 : item.agendadoPara?.seconds * 1000;
-                  const time = date ? new Date(date).toLocaleString("pt-BR") : "—";
+                  const scheduledDate = item.agendadoPara ? (item.agendadoPara.seconds ? item.agendadoPara.seconds * 1000 : item.agendadoPara) : null;
+                  const sentDate = item.enviadoEm ? (item.enviadoEm.seconds ? item.enviadoEm.seconds * 1000 : item.enviadoEm) : null;
+                  
+                  const scheduledTime = scheduledDate ? new Date(scheduledDate).toLocaleString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' }) : "—";
+                  const sentTime = sentDate ? new Date(sentDate).toLocaleString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' }) : "—";
                   
                   return (
                     <tr key={item.id}>
                       <td>
                         <div className="rep-lead-cell">
                           <strong>{item.leadNome}</strong>
-                          <span className="rep-msg-preview">{item.mensagem.substring(0, 30)}...</span>
+                          <span className="rep-msg-preview" title={item.mensagem}>{item.mensagem.substring(0, 30)}...</span>
                         </div>
                       </td>
                       <td>{item.phone}</td>
@@ -96,7 +100,8 @@ export default function CampanhaReportModal({
                           {item.status === "enviado" ? "✓ Sucesso" : item.status === "falhou" ? "✕ Falhou" : "⏲ Pendente"}
                         </span>
                       </td>
-                      <td>{time}</td>
+                      <td style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>{scheduledTime}</td>
+                      <td style={{ fontSize: '11px', whiteSpace: 'nowrap', fontWeight: sentDate ? 700 : 400 }}>{sentTime}</td>
                     </tr>
                   );
                 })}

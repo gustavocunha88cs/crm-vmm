@@ -31,6 +31,7 @@ export default function CampanhaFormModal({
   const [intervaloMin, setIntervaloMin] = useState(1); // 1 minuto
 const [intervaloMax, setIntervaloMax] = useState(2); // 2 minutos
   const [filtroTags, setFiltroTags] = useState<string[]>([]);
+  const [mediaUrl, setMediaUrl] = useState("");
 
   // Lead selection
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -67,6 +68,7 @@ const [intervaloMax, setIntervaloMax] = useState(2); // 2 minutos
     
     setFiltroTags(editingCampanha.filtroTags ?? []);
     setSelectedLeadIds(new Set(editingCampanha.leadIds ?? []));
+    setMediaUrl(editingCampanha.mediaUrl ?? "");
   } else {
     resetForm();
   }
@@ -90,6 +92,7 @@ setSelectedLeadIds(
     : new Set()
 );
     setLeadSearch("");
+    setMediaUrl("");
     setError("");
     setActiveMsgIdx(0);
   }
@@ -215,6 +218,7 @@ setSelectedLeadIds(
   intervaloMax: intervaloMax * 60,
   filtroTags,
   leadIds: Array.from(selectedLeadIds),
+  mediaUrl: mediaUrl.trim() || null,
 };
 
     try {
@@ -312,6 +316,28 @@ function getPrevisao() {
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
               />
+            </div>
+
+            {/* Imagem */}
+            <div className="cf-field">
+              <label className="cf-label">URL da Imagem <span className="cf-optional">(opcional - para enviar junto)</span></label>
+              <input
+                className="cf-input"
+                placeholder="https://exemplo.com/imagem.jpg"
+                value={mediaUrl}
+                onChange={(e) => setMediaUrl(e.target.value)}
+              />
+              {mediaUrl && (
+                <div style={{ marginTop: '8px', position: 'relative', width: 'fit-content' }}>
+                  <img src={mediaUrl} alt="Preview" style={{ maxHeight: '60px', borderRadius: '4px', border: '1px solid var(--border)' }} />
+                  <button 
+                    onClick={() => setMediaUrl("")}
+                    style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#e87070', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyCenter: 'center' }}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Intervalo */}

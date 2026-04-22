@@ -22,11 +22,6 @@ const NAV_ITEMS = [
     icon:  <LeadsIcon />,
   },
   {
-    href:  "/chat",
-    label: "Chat",
-    icon:  <ChatIcon />,
-  },
-  {
     href:  "/campanhas",
     label: "Campanhas",
     icon:  <CampIcon />,

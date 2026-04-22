@@ -49,15 +49,33 @@ export async function GET() {
 
       try {
         await doc.ref.update({ status: "enviando" });
+        let res;
 
-        const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instanceName}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
-          body: JSON.stringify({
-            number: item.phone,
-            textMessage: { text: item.mensagem }
-          })
-        });
+        if (item.mediaUrl) {
+          // Enviar com mídia
+          res = await fetch(`${EVOLUTION_API_URL}/message/sendMedia/${instanceName}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
+            body: JSON.stringify({
+              number: item.phone,
+              mediaMessage: {
+                mediatype: "image",
+                caption: item.mensagem,
+                media: item.mediaUrl
+              }
+            })
+          });
+        } else {
+          // Enviar apenas texto
+          res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instanceName}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
+            body: JSON.stringify({
+              number: item.phone,
+              textMessage: { text: item.mensagem }
+            })
+          });
+        }
 
         if (!res.ok) throw new Error(`Evolution API error: ${res.status}`);
 
@@ -72,10 +90,27 @@ export async function GET() {
           "progresso.enviados": admin.firestore.FieldValue.increment(1)
         });
 
+        // Verifica se concluiu
+        const campSnap = await campRef.get();
+        const campData = campSnap.data();
+        if (campData && campData.progresso.enviados >= campData.progresso.total) {
+          await campRef.update({
+            status: "concluida",
+            concludedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
         return { success: true, phone: item.phone };
       } catch (err: any) {
         console.error(`[Cron] Erro ao enviar para ${item.phone}:`, err.message);
         await doc.ref.update({ status: "falhou", erro: err.message });
+        
+        // Atualiza contadores de falha
+        const campRef = adminDb.collection("campanhas").doc(item.campanhaId);
+        await campRef.update({
+          "progresso.falhos": admin.firestore.FieldValue.increment(1)
+        });
+
         return { success: false, phone: item.phone, error: err.message };
       }
     }));

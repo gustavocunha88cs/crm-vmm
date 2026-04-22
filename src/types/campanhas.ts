@@ -22,6 +22,7 @@ export interface Campanha {
   startedAt?: string | object | null;
   pausedAt?: string | object | null;
   concludedAt?: string | object | null;
+  mediaUrl?: string;
 }
 
 // ─── Fila de Envio ────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ export interface FilaEnvio {
   tentativas: number;
   agendadoPara: string | object;
   enviadoEm?: string | object | null;
+  mediaUrl?: string;
   erro?: string;
 }
 
