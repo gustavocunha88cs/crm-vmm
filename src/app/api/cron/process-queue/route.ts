@@ -4,9 +4,13 @@ import * as admin from "firebase-admin";
 
 let EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://127.0.0.1:8080").trim().replace(/\/$/, "");
 
-// Garante que a URL tenha um protocolo (evita erro de 'unknown scheme')
+// Garante que a URL tenha um protocolo e seja HTTPS por padrão no Railway
 if (EVOLUTION_API_URL && !EVOLUTION_API_URL.startsWith("http")) {
-  EVOLUTION_API_URL = `http://${EVOLUTION_API_URL}`;
+  if (EVOLUTION_API_URL.includes("railway.app") || EVOLUTION_API_URL.includes("up.railway.app")) {
+    EVOLUTION_API_URL = `https://${EVOLUTION_API_URL}`;
+  } else {
+    EVOLUTION_API_URL = `http://${EVOLUTION_API_URL}`;
+  }
 }
 
 const EVOLUTION_API_KEY = (process.env.EVOLUTION_API_KEY ?? "BQYHJGJHJ").trim();
@@ -21,7 +25,11 @@ export async function GET() {
       return NextResponse.json({ error: "Firebase não inicializado" }, { status: 500 });
     }
 
-    await syncAllEvolutionInstances();
+    try {
+      await syncAllEvolutionInstances();
+    } catch (syncErr: any) {
+      console.warn("[Worker] Sincronização de instâncias falhou, mas continuando disparos:", syncErr.message);
+    }
 
     // 2. Processamento de fila de campanhas
     const filaSnap = await adminDb.collection("filaEnvio")
