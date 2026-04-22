@@ -23,16 +23,6 @@ export async function GET() {
 
     await syncAllEvolutionInstances();
 
-    // Processamento de fila de campanhas
-    const now = admin.firestore.Timestamp.now();
-    const filaSnap = await adminDb.collection("filaEnvio")
-      .where("status", "==", "pendente")
-      .limit(10).get();
-
-    if (filaSnap.empty) {
-      return NextResponse.json({ ok: true, message: "Sincronização concluída com sucesso" });
-    }
-
     // 2. Processamento de fila de campanhas
     const filaSnap = await adminDb.collection("filaEnvio")
       .where("status", "==", "pendente")
