@@ -34,16 +34,16 @@ export async function GET() {
     // 2. Processamento de fila de campanhas
     const filaSnap = await adminDb.collection("filaEnvio")
       .where("status", "==", "pendente")
-      .limit(15) // Processa 15 por vez para ser mais rápido
+      .limit(40) // Processa 40 por vez agora
       .get();
 
     if (filaSnap.empty) {
       return NextResponse.json({ ok: true, message: "Fila vazia ou sincronização ok" });
     }
 
-    console.log(`[Cron] Processando ${filaSnap.size} itens da fila...`);
+    console.log(`[Cron] Processando ${filaSnap.size} itens em paralelo...`);
     
-    for (const doc of filaSnap.docs) {
+    const results = await Promise.all(filaSnap.docs.map(async (doc) => {
       const item = doc.data();
       const instanceName = `crm-vmm-${item.userId.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase()}`;
 
@@ -72,13 +72,15 @@ export async function GET() {
           "progresso.enviados": admin.firestore.FieldValue.increment(1)
         });
 
+        return { success: true, phone: item.phone };
       } catch (err: any) {
         console.error(`[Cron] Erro ao enviar para ${item.phone}:`, err.message);
         await doc.ref.update({ status: "falhou", erro: err.message });
+        return { success: false, phone: item.phone, error: err.message };
       }
-    }
+    }));
 
-    return NextResponse.json({ ok: true, processed: filaSnap.size });
+    return NextResponse.json({ ok: true, processed: filaSnap.size, results });
   } catch (err: any) {
     console.error("Worker Error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
