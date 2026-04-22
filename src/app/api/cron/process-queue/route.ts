@@ -34,8 +34,7 @@ export async function GET() {
     // 2. Processamento de fila de campanhas
     const filaSnap = await adminDb.collection("filaEnvio")
       .where("status", "==", "pendente")
-      .orderBy("agendadoPara", "asc")
-      .limit(3) // Processa 3 por vez para não estourar o tempo do serverless
+      .limit(5)
       .get();
 
     if (filaSnap.empty) {

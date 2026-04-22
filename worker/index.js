@@ -40,7 +40,6 @@ async function processQueue() {
         const now = admin.firestore.Timestamp.now();
         const filaSnap = await db.collection("filaEnvio")
             .where("status", "==", "pendente")
-            .orderBy("agendadoPara", "asc")
             .limit(5) // Processa em blocos de 5
             .get();
 
