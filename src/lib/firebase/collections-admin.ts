@@ -215,8 +215,18 @@ export async function startCampanhaAdmin(
   intervaloMinS: number = 60,
   intervaloMaxS: number = 120
 ): Promise<void> {
-  const batch = adminDb.batch();
   const now = Date.now();
+  
+  // 1. Limpa fila anterior desta campanha para evitar duplicidades
+  const existingQueue = await adminDb.collection("filaEnvio")
+    .where("campanhaId", "==", campanhaId)
+    .get();
+  
+  const deleteBatch = adminDb.batch();
+  existingQueue.docs.forEach(doc => deleteBatch.delete(doc.ref));
+  await deleteBatch.commit();
+
+  const batch = adminDb.batch();
   const shuffledLeads = [...leads].sort(() => Math.random() - 0.5);
   
   let delayAcumulado = 0;

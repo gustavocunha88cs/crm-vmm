@@ -31,7 +31,7 @@ export default function ImportLeadsModal({
   const [nicho, setNicho] = useState("");
   const [cidades, setCidades] = useState("");
   const [maxPer, setMaxPer] = useState(20);
-  const [scrapeEmails, setScrapeEmails] = useState(true);
+  const [scrapeEmails, setScrapeEmails] = useState(false);
 
   // Results
   const [leads, setLeads] = useState<ScraperLead[]>([]);
@@ -480,7 +480,7 @@ export default function ImportLeadsModal({
                       onChange={(e) => setScrapeEmails(e.target.checked)}
                       className="vmm-checkbox"
                     />
-                    <span>Extrair e-mails (SerpAPI)</span>
+                    <span>Extrair e-mails</span>
                   </label>
                 </div>
               </div>

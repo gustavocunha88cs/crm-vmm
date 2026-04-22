@@ -399,10 +399,7 @@ export default function WhatsAppPage() {
                     <span className="wa-info-value">+{status.number}</span>
                   </div>
                 )}
-                <div className="wa-info-row">
-                  <span className="wa-info-label">Instância</span>
-                  <span className="wa-info-value wa-mono">{process.env.NEXT_PUBLIC_EVOLUTION_INSTANCE ?? "crm-vmm"}</span>
-                </div>
+
                 <div className="wa-info-row">
                   <span className="wa-info-label">Status</span>
                   <span className="wa-info-badge wa-info-badge--green">Online</span>

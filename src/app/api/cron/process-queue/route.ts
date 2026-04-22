@@ -34,7 +34,7 @@ export async function GET() {
     // 2. Processamento de fila de campanhas
     const filaSnap = await adminDb.collection("filaEnvio")
       .where("status", "==", "pendente")
-      .limit(5)
+      .limit(15) // Processa 15 por vez para ser mais rápido
       .get();
 
     if (filaSnap.empty) {
