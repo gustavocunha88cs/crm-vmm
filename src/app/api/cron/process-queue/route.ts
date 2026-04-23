@@ -12,6 +12,7 @@ if (EVOLUTION_API_URL && !EVOLUTION_API_URL.startsWith("http")) {
 }
 
 const EVOLUTION_API_KEY = (process.env.EVOLUTION_API_KEY ?? "BQYHJGJHJ").trim();
+const PREFIX = "crm-vmm-";
 
 export async function GET() {
   try {
@@ -34,7 +35,7 @@ export async function GET() {
     console.log(`[Cron] Processando ${items.length} itens...`);
     
     const results = await Promise.all(items.map(async (item) => {
-      const instanceName = `crm-vmm-${item.user_id.substring(0, 8).toLowerCase()}`;
+      const instanceName = `${PREFIX}${item.user_id.substring(0, 8).toLowerCase()}`;
 
       try {
         // Marca como enviando
@@ -65,17 +66,49 @@ export async function GET() {
           });
         }
 
-        if (!res.ok) throw new Error(`Evolution API error: ${res.status}`);
-        const apiData = await res.json();
+        const data = await res.json();
 
-        // Sucesso
+        if (res.ok) {
+          // Sucesso
+          await supabaseAdmin.from("fila_envio").update({
+            status: "enviado",
+            enviado_em: new Date().toISOString(),
+            message_id: data.key?.id || data.messageId
+          }).eq("id", item.id);
+
+          // Atualiza progresso da campanha
+          const { data: camp } = await supabaseAdmin
+            .from("campanhas")
+            .select("progresso")
+            .eq("id", item.campanha_id)
+            .single();
+
+          if (camp) {
+            const prog = camp.progresso || { total: 0, enviados: 0, falhos: 0 };
+            prog.enviados = (prog.enviados || 0) + 1;
+            
+            const isDone = prog.enviados + (prog.falhos || 0) >= prog.total;
+            
+            await supabaseAdmin.from("campanhas").update({
+              progresso: prog,
+              status: isDone ? "concluida" : "ativa",
+              concluded_at: isDone ? new Date().toISOString() : null
+            }).eq("id", item.campanha_id);
+          }
+
+          return { id: item.id, status: "success" };
+        } else {
+          throw new Error(data.message || "Erro no envio");
+        }
+      } catch (err: any) {
+        console.error(`[Worker] Erro no item ${item.id}:`, err.message);
+        
         await supabaseAdmin.from("fila_envio").update({
-          status: "enviado",
-          enviado_em: new Date().toISOString(),
-          message_id: apiData?.key?.id || apiData?.messageId || null
+          status: "falhou",
+          erro: err.message
         }).eq("id", item.id);
 
-        // Atualiza contadores na campanha
+        // Atualiza falha na campanha
         const { data: camp } = await supabaseAdmin
           .from("campanhas")
           .select("progresso")
@@ -83,171 +116,24 @@ export async function GET() {
           .single();
 
         if (camp) {
-          const newProg = { 
-            ...camp.progresso, 
-            enviados: (camp.progresso.enviados || 0) + 1 
-          };
-          
-          const isDone = newProg.enviados >= newProg.total;
-          
-          await supabaseAdmin.from("campanhas").update({
-            progresso: newProg,
-            status: isDone ? "concluida" : "em_andamento",
-            concluded_at: isDone ? new Date().toISOString() : null
-          }).eq("id", item.campanha_id);
+          const prog = camp.progresso || { total: 0, enviados: 0, falhos: 0 };
+          prog.falhos = (prog.falhos || 0) + 1;
+          await supabaseAdmin.from("campanhas").update({ progresso: prog }).eq("id", item.campanha_id);
         }
 
-        return { success: true, phone: item.phone };
-      } catch (err: any) {
-        console.error(`[Cron] Erro ao enviar para ${item.phone}:`, err.message);
-        await supabaseAdmin.from("fila_envio").update({ status: "falhou" }).eq("id", item.id);
-        
-        // Atualiza contadores de falha
-        const { data: camp } = await supabaseAdmin
-          .from("campanhas")
-          .select("progresso")
-          .eq("id", item.campanha_id)
-          .single();
-
-        if (camp) {
-          await supabaseAdmin.from("campanhas").update({
-            progresso: { 
-              ...camp.progresso, 
-              falhos: (camp.progresso.falhos || 0) + 1 
-            }
-          }).eq("id", item.campanha_id);
-        }
-
-        return { success: false, phone: item.phone, error: err.message };
+        return { id: item.id, status: "failed", error: err.message };
       }
     }));
 
-    return NextResponse.json({ ok: true, processed: items.length, results });
-  } catch (err: any) {
-    console.error("Worker Error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}
-
-async function syncAllEvolutionInstances() {
-  try {
-    const res = await fetch(`${EVOLUTION_API_URL}/instance/fetchInstances`, {
-      headers: { apikey: EVOLUTION_API_KEY }
+    // Sincronização de chats removida para evitar erros de build com Firebase
+    return NextResponse.json({
+      ok: true,
+      processed: results.length,
+      results
     });
-    
-    if (!res.ok) {
-        const errText = await res.text();
-        console.error(`[ChatSync] Fallback Evolution API (${res.status}):`, errText.substring(0, 100));
-        return;
-    }
 
-    const instancesRaw = await res.json();
-    if (!Array.isArray(instancesRaw)) return;
-
-    for (const item of instancesRaw) {
-      const inst = item.instance;
-      if (!inst || !inst.instanceName.startsWith(PREFIX)) continue;
-      
-      const instanceName = inst.instanceName;
-      const state = inst.status || inst.state;
-      const userId = instanceName.replace(PREFIX, "").toLowerCase();
-
-      if (state === "open" || state === "CONNECTED") {
-        console.log(`[ChatSync] Processando instância: ${instanceName}`);
-        
-        const chatsRes = await fetch(`${EVOLUTION_API_URL}/chat/findChats/${instanceName}`, {
-          headers: { apikey: EVOLUTION_API_KEY }
-        });
-        
-        if (!chatsRes.ok) continue;
-
-        const allChats = await chatsRes.json();
-        if (!Array.isArray(allChats)) continue;
-
-        // FILTRAGEM E ORDENAÇÃO IGUAL AO WHATSAPP
-        const validChats = allChats
-          .filter((c: any) => {
-            const jid = c.id || c.remoteJid || "";
-            // Ignora IDs de sistema (@lid) e foca em contatos/grupos reais
-            return jid.endsWith("@s.whatsapp.net") || jid.endsWith("@g.us");
-          })
-          .sort((a: any, b: any) => {
-            // Ordena pelo timestamp da última mensagem (mais recente primeiro)
-            const timeA = Number(a.lastMsgTimestamp || 0);
-            const timeB = Number(b.lastMsgTimestamp || 0);
-            return timeB - timeA;
-          })
-          .slice(0, 100); // Pegamos os 100 chats mais recentes
-
-        console.log(`[ChatSync] ${validChats.length} conversas reais encontradas para ${userId}`);
-
-        const batch = adminDb.batch();
-        
-        for (const chat of validChats) {
-          const remoteJid = chat.id || chat.remoteJid;
-          const chatId = `${userId}_${remoteJid}`;
-          const chatRef = adminDb.collection("chats").doc(chatId);
-
-          const lastTime = Number(chat.lastMsgTimestamp || 0);
-          const timestamp = lastTime 
-            ? admin.firestore.Timestamp.fromMillis(lastTime * (lastTime > 9999999999 ? 1 : 1000))
-            : admin.firestore.FieldValue.serverTimestamp();
-
-          batch.set(chatRef, {
-            userId,
-            remoteJid,
-            name: chat.pushName || chat.name || remoteJid.split("@")[0],
-            lastMessage: chat.lastMessage || "",
-            lastMessageTime: timestamp,
-            unreadCount: chat.unreadCount || 0,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-        }
-        
-        await batch.commit();
-        console.log(`[ChatSync] Batch de chats finalizado para ${userId}`);
-
-        // Sincronização rápida de mensagens para os 10 chats mais ativos
-        for (const chat of validChats.slice(0, 10)) {
-          const remoteJid = chat.id || chat.remoteJid;
-          try {
-            const msgsRes = await fetch(`${EVOLUTION_API_URL}/chat/findMessages/${instanceName}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
-              body: JSON.stringify({ where: { remoteJid }, limit: 10 })
-            });
-
-            if (!msgsRes.ok) continue;
-
-            const msgsData = await msgsRes.json();
-            const msgs = Array.isArray(msgsData) ? msgsData : (msgsData.messages || []);
-            
-            const msgBatch = adminDb.batch();
-            for (const m of msgs) {
-              const mId = m.key?.id || m.id;
-              if (!mId) continue;
-              const msgRef = adminDb.collection("mensagens").doc(`${userId}_${mId}`);
-              
-              const mTime = Number(m.messageTimestamp || m.timestamp || 0);
-              const mTimestamp = mTime 
-                ? admin.firestore.Timestamp.fromMillis(mTime * (mTime > 9999999999 ? 1 : 1000))
-                : admin.firestore.FieldValue.serverTimestamp();
-
-              msgBatch.set(msgRef, {
-                userId, chatId: `${userId}_${remoteJid}`, remoteJid,
-                body: m.message?.conversation || m.message?.extendedTextMessage?.text || m.text || "Mídia",
-                fromMe: m.key?.fromMe ?? m.fromMe ?? false,
-                timestamp: mTimestamp,
-                status: m.status || "RECEIVED",
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-              }, { merge: true });
-            }
-            await msgBatch.commit();
-          } catch(e) {}
-        }
-      }
-    }
-  } catch (e) {
-    console.error("[ChatSync] Erro global:", e);
+  } catch (error: any) {
+    console.error("[Worker Error]:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

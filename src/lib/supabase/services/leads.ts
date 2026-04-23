@@ -123,3 +123,26 @@ export async function createTag(userId: string, name: string): Promise<any> {
   const trimmed = name.trim().toLowerCase();
   return { id: trimmed, name: trimmed, color: "#4E6550" };
 }
+
+function mapFromDb(row: any): Lead {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.nome,
+    phone: row.phone,
+    status: row.status,
+    wa_status: row.wa_status,
+    tags: row.tags || [],
+    city: row.city,
+    state: row.state,
+    address: row.address,
+    email: row.email,
+    website: row.website,
+    categoryName: row.category_name,
+    acquisitionDate: row.created_at,
+    createdAt: row.created_at,
+    totalScore: row.total_score,
+    reviewsCount: row.reviews_count,
+    url: row.url
+  } as Lead;
+}

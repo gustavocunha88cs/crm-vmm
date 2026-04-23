@@ -169,10 +169,16 @@ function mapCampanhaFromDb(row: any): Campanha {
     id: row.id,
     userId: row.user_id,
     nome: row.nome,
-    mensagem: row.mensagem,
+    descricao: row.descricao,
+    mensagens: row.mensagens || [],
+    filtroTags: row.filtro_tags || [],
+    leadIds: row.lead_ids || [],
     mediaUrl: row.media_url,
     status: row.status,
-    progresso: row.progresso,
+    progresso: row.progresso || { total: 0, enviados: 0, falhos: 0 },
+    intervaloMin: row.intervalo_min || 30,
+    intervaloMax: row.intervalo_max || 60,
+    intervaloSegundos: row.intervalo_min || 30, // legado
     createdAt: row.created_at,
     concludedAt: row.concluded_at
   } as Campanha;
