@@ -69,7 +69,16 @@ export async function saveLeadsToSupabase(
       phone: normalizePhone(raw.phone),
       status: "novo",
       tags: tagIds,
-      tags_ref: [], // Pode ser expandido depois
+      tags_ref: [],
+      city: raw.city || null,
+      state: raw.state || null,
+      address: raw.address || null,
+      email: raw.email || null,
+      website: raw.website || null,
+      category_name: raw.categoryName || null,
+      total_score: raw.totalScore || null,
+      reviews_count: raw.reviewsCount || null,
+      url: raw.url || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }));
@@ -78,9 +87,9 @@ export async function saveLeadsToSupabase(
     const { error } = await supabase.from("leads").insert(rows);
     if (error) {
       console.error("Erro ao inserir leads:", error);
-    } else {
-      saved = rows.length;
+      throw error;
     }
+    saved = rows.length;
   }
 
   return { saved, skipped };
