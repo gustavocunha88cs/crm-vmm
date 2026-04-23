@@ -75,6 +75,7 @@ export async function addLeadsToQueue(userId: string, items: any[]): Promise<boo
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export async function getCampanha(userId: string, id: string): Promise<Campanha | null> {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("campanhas")
     .select("*")
@@ -106,6 +107,7 @@ export async function updateCampanha(userId: string, id: string, data: Partial<C
 }
 
 export async function deleteCampanha(userId: string, id: string): Promise<void> {
+  const supabase = await createClient();
   await supabase
     .from("campanhas")
     .delete()
@@ -152,6 +154,7 @@ export async function startCampanha(
   });
 
   // 1. Insere na fila
+  const supabase = await createClient();
   const { error: queueError } = await supabase.from("fila_envio").insert(queueItems);
   if (queueError) throw queueError;
 
