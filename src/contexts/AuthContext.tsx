@@ -122,6 +122,10 @@ export function useAuth() {
 }
 
 // ─── Error messages in PT-BR ──────────────────────────────────────────────────
-    default:                             return "Erro na operação. Tente novamente.";
-  }
+function friendlyAuthError(msg: string): string {
+  if (msg.includes("Invalid login credentials")) return "E-mail ou senha incorretos.";
+  if (msg.includes("Email not confirmed"))       return "Por favor, confirme seu e-mail.";
+  if (msg.includes("User already registered"))    return "Este e-mail já está em uso.";
+  if (msg.includes("Password should be"))        return "A senha deve ser mais forte.";
+  return msg;
 }
