@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import type { Campanha, TagRef } from "@/types/campanhas";
 import type { Lead } from "@/types";
 import { apiFetch } from "@/lib/api";
+import { storage } from "@/lib/firebase/client";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface CampanhaFormModalProps {
@@ -46,7 +48,9 @@ const [intervaloMax, setIntervaloMax] = useState(2); // 2 minutos
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [activeMsgIdx, setActiveMsgIdx] = useState(0);
+  const [uploading, setUploading] = useState(false);
   const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isEditing = !!editingCampanha;
 
@@ -200,6 +204,37 @@ setSelectedLeadIds(
   }
 
 
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Por favor, selecione apenas arquivos de imagem.");
+      return;
+    }
+
+    // Máximo 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      setError("A imagem deve ter no máximo 5MB.");
+      return;
+    }
+
+    setUploading(true);
+    setError("");
+    try {
+      const storageRef = ref(storage, `campanhas/${Date.now()}_${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(snapshot.ref);
+      setMediaUrl(url);
+    } catch (err) {
+      console.error("Upload error:", err);
+      setError("Erro ao fazer upload da imagem. Verifique se o Firebase Storage está ativado.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+
   // ── Save ─────────────────────────────────────────────────────────────────────
   async function handleSave() {
     setError("");
@@ -320,21 +355,72 @@ function getPrevisao() {
 
             {/* Imagem */}
             <div className="cf-field">
-              <label className="cf-label">URL da Imagem <span className="cf-optional">(opcional - para enviar junto)</span></label>
-              <input
-                className="cf-input"
-                placeholder="https://exemplo.com/imagem.jpg"
-                value={mediaUrl}
-                onChange={(e) => setMediaUrl(e.target.value)}
-              />
+              <label className="cf-label">Imagem da Campanha <span className="cf-optional">(opcional)</span></label>
+              
+              <div className="cf-media-options" style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                />
+                
+                <button 
+                  type="button"
+                  className="cf-upload-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  style={{
+                    flex: 1, padding: '10px', background: '#F2F3EE', border: '1.5px dashed #C8CCC0',
+                    borderRadius: '8px', fontSize: '12px', fontWeight: 700, color: '#4E6550',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                  }}
+                >
+                  {uploading ? (
+                    <><span className="cf-spinner-sm" /> Carregando...</>
+                  ) : (
+                    <>📤 Fazer Upload</>
+                  )}
+                </button>
+
+                <div style={{ flex: 2, position: 'relative' }}>
+                  <input
+                    className="cf-input"
+                    placeholder="Ou cole a URL aqui..."
+                    value={mediaUrl}
+                    onChange={(e) => setMediaUrl(e.target.value)}
+                    style={{ paddingRight: '30px' }}
+                  />
+                  {mediaUrl && (
+                    <button 
+                      onClick={() => setMediaUrl("")}
+                      style={{ 
+                        position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', color: '#999', cursor: 'pointer' 
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {mediaUrl && (
-                <div style={{ marginTop: '8px', position: 'relative', width: 'fit-content' }}>
-                  <img src={mediaUrl} alt="Preview" style={{ maxHeight: '60px', borderRadius: '4px', border: '1px solid var(--border)' }} />
+                <div style={{ 
+                  marginTop: '8px', padding: '12px', background: 'white', borderRadius: '8px', 
+                  border: '1px solid #C8CCC0', display: 'flex', alignItems: 'center', gap: '12px' 
+                }}>
+                  <img src={mediaUrl} alt="Preview" style={{ height: '48px', width: '48px', objectFit: 'cover', borderRadius: '4px' }} />
+                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#4E6550', textTransform: 'uppercase' }}>Preview da Imagem</div>
+                    <div style={{ fontSize: '10px', color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mediaUrl}</div>
+                  </div>
                   <button 
                     onClick={() => setMediaUrl("")}
-                    style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#e87070', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ background: '#fdecea', color: '#b91c1c', border: 'none', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
                   >
-                    ×
+                    Remover
                   </button>
                 </div>
               )}
