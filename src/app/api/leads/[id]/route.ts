@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateLeadAdmin } from "@/lib/firebase/collections-admin";
+import { updateLead } from "@/lib/supabase/services/leads";
 import { getAuthUserId } from "@/lib/auth-server";
 
 export async function PATCH(
@@ -19,8 +19,7 @@ export async function PATCH(
       return NextResponse.json({ error: "ID não fornecido" }, { status: 400 });
     }
 
-    // Use admin version with userId check
-    await updateLeadAdmin(userId, id, data);
+    await updateLead(userId, id, data);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

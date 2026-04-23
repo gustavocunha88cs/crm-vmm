@@ -109,6 +109,40 @@ export async function deleteLeads(ids: string[]): Promise<number> {
   return ids.length;
 }
 
+export async function updateLead(userId: string, id: string, data: Partial<Lead>) {
+  const supabase = await createClient();
+  
+  // Mapeia de camelCase para snake_case
+  const updateData: any = {};
+  if (data.title !== undefined) updateData.nome = data.title;
+  if (data.phone !== undefined) updateData.phone = data.phone;
+  if (data.status !== undefined) updateData.status = data.status;
+  if (data.wa_status !== undefined) updateData.wa_status = data.wa_status;
+  if (data.tags !== undefined) updateData.tags = data.tags;
+  if (data.city !== undefined) updateData.city = data.city;
+  if (data.state !== undefined) updateData.state = data.state;
+  if (data.address !== undefined) updateData.address = data.address;
+  if (data.email !== undefined) updateData.email = data.email;
+  if (data.website !== undefined) updateData.website = data.website;
+  if (data.categoryName !== undefined) updateData.category_name = data.categoryName;
+  if (data.totalScore !== undefined) updateData.total_score = data.totalScore;
+  if (data.reviewsCount !== undefined) updateData.reviews_count = data.reviewsCount;
+  if (data.url !== undefined) updateData.url = data.url;
+
+  updateData.updated_at = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("leads")
+    .update(updateData)
+    .eq("id", id)
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("Erro ao atualizar lead no Supabase:", error);
+    throw error;
+  }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function normalizePhone(raw: string): string {
