@@ -4,8 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import type { Campanha, TagRef } from "@/types/campanhas";
 import type { Lead } from "@/types";
 import { apiFetch } from "@/lib/api";
-import { storage } from "@/lib/firebase/client";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface CampanhaFormModalProps {
@@ -222,13 +220,29 @@ setSelectedLeadIds(
     setUploading(true);
     setError("");
     try {
-      const storageRef = ref(storage, `campanhas/${Date.now()}_${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(snapshot.ref);
-      setMediaUrl(url);
+      const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+      if (!apiKey) {
+        throw new Error("Chave API do ImgBB não configurada no .env.local");
+      }
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setMediaUrl(data.data.url);
+      } else {
+        throw new Error(data.error?.message || "Erro no upload para o ImgBB");
+      }
     } catch (err) {
       console.error("Upload error:", err);
-      setError("Erro ao fazer upload da imagem. Verifique se o Firebase Storage está ativado.");
+      setError((err as Error).message || "Erro ao fazer upload da imagem.");
     } finally {
       setUploading(false);
     }

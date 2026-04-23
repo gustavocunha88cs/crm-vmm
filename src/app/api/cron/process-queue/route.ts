@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
-import * as admin from "firebase-admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 let EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://127.0.0.1:8080").trim().replace(/\/$/, "");
 
-// Garante que a URL tenha um protocolo e seja HTTPS por padrão no Railway
 if (EVOLUTION_API_URL && !EVOLUTION_API_URL.startsWith("http")) {
   if (EVOLUTION_API_URL.includes("railway.app") || EVOLUTION_API_URL.includes("up.railway.app")) {
     EVOLUTION_API_URL = `https://${EVOLUTION_API_URL}`;
@@ -14,45 +12,36 @@ if (EVOLUTION_API_URL && !EVOLUTION_API_URL.startsWith("http")) {
 }
 
 const EVOLUTION_API_KEY = (process.env.EVOLUTION_API_KEY ?? "BQYHJGJHJ").trim();
-const PREFIX = "crm-vmm-";
 
 export async function GET() {
   try {
-    console.log("[Worker] Sincronização avançada iniciada...");
+    console.log("[Worker] Processamento de fila Supabase iniciado...");
     
-    if (!adminDb) {
-      console.error("[Worker] Erro: adminDb não inicializado. Verifique as variáveis de ambiente.");
-      return NextResponse.json({ error: "Firebase não inicializado" }, { status: 500 });
+    // 1. Busca itens pendentes
+    const { data: items, error: fetchError } = await supabaseAdmin
+      .from("fila_envio")
+      .select("*")
+      .eq("status", "pendente")
+      .lte("agendado_para", new Date().toISOString())
+      .limit(40);
+
+    if (fetchError) throw fetchError;
+
+    if (!items || items.length === 0) {
+      return NextResponse.json({ ok: true, message: "Fila vazia" });
     }
 
-    try {
-      await syncAllEvolutionInstances();
-    } catch (syncErr: any) {
-      console.warn("[Worker] Sincronização de instâncias falhou, mas continuando disparos:", syncErr.message);
-    }
-
-    // 2. Processamento de fila de campanhas
-    const filaSnap = await adminDb.collection("filaEnvio")
-      .where("status", "==", "pendente")
-      .limit(40) // Processa 40 por vez agora
-      .get();
-
-    if (filaSnap.empty) {
-      return NextResponse.json({ ok: true, message: "Fila vazia ou sincronização ok" });
-    }
-
-    console.log(`[Cron] Processando ${filaSnap.size} itens em paralelo...`);
+    console.log(`[Cron] Processando ${items.length} itens...`);
     
-    const results = await Promise.all(filaSnap.docs.map(async (doc) => {
-      const item = doc.data();
-      const instanceName = `crm-vmm-${item.userId.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase()}`;
+    const results = await Promise.all(items.map(async (item) => {
+      const instanceName = `crm-vmm-${item.user_id.substring(0, 8).toLowerCase()}`;
 
       try {
-        await doc.ref.update({ status: "enviando" });
-        let res;
+        // Marca como enviando
+        await supabaseAdmin.from("fila_envio").update({ status: "enviando" }).eq("id", item.id);
 
-        if (item.mediaUrl) {
-          // Enviar com mídia
+        let res;
+        if (item.media_url) {
           res = await fetch(`${EVOLUTION_API_URL}/message/sendMedia/${instanceName}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
@@ -61,12 +50,11 @@ export async function GET() {
               mediaMessage: {
                 mediatype: "image",
                 caption: item.mensagem,
-                media: item.mediaUrl
+                media: item.media_url
               }
             })
           });
         } else {
-          // Enviar apenas texto
           res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instanceName}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
@@ -78,44 +66,63 @@ export async function GET() {
         }
 
         if (!res.ok) throw new Error(`Evolution API error: ${res.status}`);
+        const apiData = await res.json();
 
-        await doc.ref.update({
+        // Sucesso
+        await supabaseAdmin.from("fila_envio").update({
           status: "enviado",
-          enviadoEm: admin.firestore.Timestamp.now()
-        });
+          enviado_em: new Date().toISOString(),
+          message_id: apiData?.key?.id || apiData?.messageId || null
+        }).eq("id", item.id);
 
         // Atualiza contadores na campanha
-        const campRef = adminDb.collection("campanhas").doc(item.campanhaId);
-        await campRef.update({
-          "progresso.enviados": admin.firestore.FieldValue.increment(1)
-        });
+        const { data: camp } = await supabaseAdmin
+          .from("campanhas")
+          .select("progresso")
+          .eq("id", item.campanha_id)
+          .single();
 
-        // Verifica se concluiu
-        const campSnap = await campRef.get();
-        const campData = campSnap.data();
-        if (campData && campData.progresso.enviados >= campData.progresso.total) {
-          await campRef.update({
-            status: "concluida",
-            concludedAt: admin.firestore.FieldValue.serverTimestamp()
-          });
+        if (camp) {
+          const newProg = { 
+            ...camp.progresso, 
+            enviados: (camp.progresso.enviados || 0) + 1 
+          };
+          
+          const isDone = newProg.enviados >= newProg.total;
+          
+          await supabaseAdmin.from("campanhas").update({
+            progresso: newProg,
+            status: isDone ? "concluida" : "em_andamento",
+            concluded_at: isDone ? new Date().toISOString() : null
+          }).eq("id", item.campanha_id);
         }
 
         return { success: true, phone: item.phone };
       } catch (err: any) {
         console.error(`[Cron] Erro ao enviar para ${item.phone}:`, err.message);
-        await doc.ref.update({ status: "falhou", erro: err.message });
+        await supabaseAdmin.from("fila_envio").update({ status: "falhou" }).eq("id", item.id);
         
         // Atualiza contadores de falha
-        const campRef = adminDb.collection("campanhas").doc(item.campanhaId);
-        await campRef.update({
-          "progresso.falhos": admin.firestore.FieldValue.increment(1)
-        });
+        const { data: camp } = await supabaseAdmin
+          .from("campanhas")
+          .select("progresso")
+          .eq("id", item.campanha_id)
+          .single();
+
+        if (camp) {
+          await supabaseAdmin.from("campanhas").update({
+            progresso: { 
+              ...camp.progresso, 
+              falhos: (camp.progresso.falhos || 0) + 1 
+            }
+          }).eq("id", item.campanha_id);
+        }
 
         return { success: false, phone: item.phone, error: err.message };
       }
     }));
 
-    return NextResponse.json({ ok: true, processed: filaSnap.size, results });
+    return NextResponse.json({ ok: true, processed: items.length, results });
   } catch (err: any) {
     console.error("Worker Error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

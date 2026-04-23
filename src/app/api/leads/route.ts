@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getLeadsAdmin, saveLeadsAdmin, deleteLeadsAdmin } from "@/lib/firebase/collections-admin";
+import { getLeads, saveLeadsToSupabase, deleteLeads } from "@/lib/supabase/services/leads";
 import { nanoid } from "nanoid";
 import type { ScraperLead } from "@/types";
 import { getAuthUserId } from "@/lib/auth-server";
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const tagId = req.nextUrl.searchParams.get("tag") || undefined;
   
   try {
-    const leads = await getLeadsAdmin(userId, tagId);
+    const leads = await getLeads(userId, tagId);
     return NextResponse.json({ leads });
   } catch (err: unknown) {
     console.error("GET /api/leads error:", err);
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const batchId = nanoid(10);
 
   try {
-    const result = await saveLeadsAdmin(
+    const result = await saveLeadsToSupabase(
       userId,
       body.leads,
       body.tagIds ?? [],
@@ -72,7 +72,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Nenhum ID fornecido" }, { status: 400 });
     }
 
-    const count = await deleteLeadsAdmin(userId, body.ids);
+    const count = await deleteLeads(body.ids);
     return NextResponse.json({ success: true, count });
   } catch (err: unknown) {
     console.error("DELETE /api/leads error:", err);

@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getTagsAdmin, createTagAdmin } from "@/lib/firebase/collections-admin";
+import { getTags, createTag } from "@/lib/supabase/services/leads";
 import { getAuthUserId } from "@/lib/auth-server";
 
 // GET /api/tags
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const tags = await getTagsAdmin(userId);
+    const tags = await getTags(userId);
     return NextResponse.json({ tags });
   } catch (err: unknown) {
     console.error("GET /api/tags error:", err);
@@ -41,15 +41,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const palette = [
-    "#4E6550", "#28352A", "#6B8F6E", "#3D5C40",
-    "#8BA888", "#2C4A2E", "#5C7A5F", "#1A3320",
-  ];
-  const color =
-    body.color ?? palette[Math.floor(Math.random() * palette.length)];
-
   try {
-    const tag = await createTagAdmin(userId, body.name, color);
+    const tag = await createTag(userId, body.name);
     return NextResponse.json({ tag });
   } catch (err: unknown) {
     console.error("POST /api/tags error:", err);

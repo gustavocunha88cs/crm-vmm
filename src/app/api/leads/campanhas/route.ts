@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/auth-server";
 
 /**
@@ -12,29 +12,31 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [filaSnap, campSnap] = await Promise.all([
-      adminDb.collection("filaEnvio").where("userId", "==", userId).get(),
-      adminDb.collection("campanhas").where("userId", "==", userId).get()
+    const [filaRes, campRes] = await Promise.all([
+      supabaseAdmin.from("fila_envio").select("lead_id, campanha_id, status").eq("user_id", userId),
+      supabaseAdmin.from("campanhas").select("id, nome").eq("user_id", userId)
     ]);
 
+    if (filaRes.error) throw filaRes.error;
+    if (campRes.error) throw campRes.error;
+
     const campMap: Record<string, string> = {};
-    campSnap.docs.forEach(d => {
-      campMap[d.id] = d.data().nome;
+    campRes.data.forEach(c => {
+      campMap[c.id] = c.nome;
     });
 
     const leadMap: Record<string, any[]> = {};
 
-    filaSnap.docs.forEach(d => {
-      const data = d.data();
-      const leadId = data.leadId;
+    filaRes.data.forEach(row => {
+      const leadId = row.lead_id;
       if (!leadId) return;
 
       if (!leadMap[leadId]) leadMap[leadId] = [];
       
       leadMap[leadId].push({
-        campanhaId: data.campanhaId,
-        campanhaNome: campMap[data.campanhaId] || "Campanha removida",
-        status: data.status
+        campanhaId: row.campanha_id,
+        campanhaNome: campMap[row.campanha_id] || "Campanha removida",
+        status: row.status
       });
     });
 

@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getCampanhaAdmin, startCampanhaAdmin, getLeadsByIdsAdmin } from "@/lib/firebase/collections-admin";
+import { getCampanha, startCampanha } from "@/lib/supabase/services/campanhas";
+import { getLeadsByIds } from "@/lib/supabase/services/leads";
 import { getAuthUserId } from "@/lib/auth-server";
 
 // POST /api/campanhas/[id]/start
@@ -16,7 +17,7 @@ export async function POST(
   const { id } = await params;
   
   try {
-    const campanha = await getCampanhaAdmin(userId, id);
+    const campanha = await getCampanha(userId, id);
     
     if (!campanha)
       return NextResponse.json({ error: "Campanha não encontrada ou acesso negado" }, { status: 404 });
@@ -27,7 +28,7 @@ export async function POST(
     if (!campanha.leadIds?.length)
       return NextResponse.json({ error: "Nenhum lead selecionado" }, { status: 400 });
 
-    const leads = await getLeadsByIdsAdmin(userId, campanha.leadIds);
+    const leads = await getLeadsByIds(userId, campanha.leadIds);
     const leadsComTelefone = leads.filter((l) => l.phone);
 
     if (!leadsComTelefone.length)
@@ -36,7 +37,7 @@ export async function POST(
         { status: 400 }
       );
 
-    await startCampanhaAdmin(
+    await startCampanha(
       userId,
       id,
       leadsComTelefone.map((l: any) => ({
@@ -46,7 +47,8 @@ export async function POST(
       })),
       campanha.mensagens || [],
       Number(campanha.intervaloMin || 60),
-      Number(campanha.intervaloMax || 120)
+      Number(campanha.intervaloMax || 120),
+      campanha.mediaUrl
     );
 
     return NextResponse.json({

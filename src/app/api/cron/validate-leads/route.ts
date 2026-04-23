@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
-import * as admin from "firebase-admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { validateNumbersWithThrottling } from "@/lib/evolution/numbers";
 import { getAuthUserId } from "@/lib/auth-server";
 
@@ -16,42 +15,41 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const leadsSnap = await adminDb.collection("leads")
-      .where("userId", "==", userId)
-      .where("wa_status", "==", "PENDENTE")
-      .limit(2)
-      .get();
+    const { data: leadsToProcess, error: fetchError } = await supabaseAdmin
+      .from("leads")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("wa_status", "PENDENTE")
+      .limit(2);
     
-    if (leadsSnap.empty) {
+    if (fetchError) throw fetchError;
+
+    if (!leadsToProcess || leadsToProcess.length === 0) {
       return NextResponse.json({ message: "Sem leads pendentes." });
     }
 
-    const leadsToProcess = leadsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
     const phones = leadsToProcess.map(l => l.phone).filter(Boolean);
 
     console.log(`[CronValidation Admin] User ${userId}: Validando ${phones.length} leads...`);
     const result = await validateNumbersWithThrottling(userId, phones);
 
     let count = 0;
-    const batch = adminDb.batch();
-
     for (const lead of leadsToProcess) {
       const isValid = result.valid.includes(lead.phone);
       const isInvalid = result.invalid.includes(lead.phone);
       
       if (!isValid && !isInvalid) continue;
 
-      const leadRef = adminDb.collection("leads").doc(lead.id);
-      batch.update(leadRef, {
-        wa_status: isValid ? "VALIDADO" : "INVÁLIDO",
-        status: isValid ? lead.status : "perdido",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
+      await supabaseAdmin
+        .from("leads")
+        .update({
+          wa_status: isValid ? "VALIDADO" : "INVÁLIDO",
+          status: isValid ? lead.status : "perdido",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", lead.id);
+      
       count++;
-    }
-
-    if (count > 0) {
-      await batch.commit();
     }
 
     return NextResponse.json({

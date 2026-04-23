@@ -26,5 +26,4 @@ if (getApps().length) {
 
 export const db = app ? getFirestore(app) : null as unknown as Firestore;
 export const auth = app ? getAuth(app) : null as unknown as Auth;
-export const storage = app ? getStorage(app) : null as unknown as FirebaseStorage;
 export default app;

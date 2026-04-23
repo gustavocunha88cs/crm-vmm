@@ -7,15 +7,8 @@ import {
   useState,
   ReactNode,
 } from "react";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  User,
-  AuthError,
-} from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,63 +41,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router   = useRouter();
   const pathname = usePathname();
 
-  // Listen to Firebase auth state changes
   useEffect(() => {
-    if (!auth) {
+    // Check active sessions and sets the user
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setLoading(false);
-      return;
-    }
-
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setLoading(false);
-
-      // Redirect unauthenticated users to login/register
-      const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
-      if (!firebaseUser && !isAuthPage) {
-        router.replace("/login");
-      }
-      // Redirect authenticated users away from auth pages
-      if (firebaseUser && isAuthPage) {
-        router.replace("/dashboard");
-      }
+      checkRedirect(session?.user ?? null);
     });
-    return unsub;
-  }, [pathname, router]);
+
+    // Listen for changes on auth state
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      setLoading(false);
+      checkRedirect(currentUser);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [pathname]);
+
+  function checkRedirect(currentUser: User | null) {
+    const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
+    if (!currentUser && !isAuthPage) {
+      router.replace("/login");
+    }
+    if (currentUser && isAuthPage) {
+      router.replace("/dashboard");
+    }
+  }
 
   async function signIn(email: string, password: string) {
-    if (!auth) {
-      setError("Erro de configuração: Firebase Auth não inicializado.");
-      return;
-    }
     setError("");
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.replace("/dashboard");
-    } catch (err: unknown) {
-      setError(friendlyAuthError(err as AuthError));
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (err) {
+      setError(friendlyAuthError(err.message));
       throw err;
     }
+    router.replace("/dashboard");
   }
 
   async function signUp(email: string, password: string) {
-    if (!auth) {
-      setError("Erro de configuração: Firebase Auth não inicializado.");
-      return;
-    }
     setError("");
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      router.replace("/dashboard");
-    } catch (err: unknown) {
-      setError(friendlyAuthError(err as AuthError));
+    const { error: err } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          nome: email.split("@")[0], // Placeholder
+        },
+      },
+    });
+
+    if (err) {
+      setError(friendlyAuthError(err.message));
       throw err;
     }
+    // Supabase might require email confirmation, but we redirect if session exists
+    router.replace("/dashboard");
   }
 
   async function logOut() {
-    if (!auth) return;
-    await signOut(auth);
+    await supabase.auth.signOut();
     router.replace("/login");
   }
 
@@ -121,17 +122,6 @@ export function useAuth() {
 }
 
 // ─── Error messages in PT-BR ──────────────────────────────────────────────────
-function friendlyAuthError(err: AuthError): string {
-  switch (err.code) {
-    case "auth/invalid-email":           return "E-mail inválido.";
-    case "auth/user-not-found":          return "Usuário não encontrado.";
-    case "auth/wrong-password":          return "Senha incorreta.";
-    case "auth/email-already-in-use":    return "Este e-mail já está em uso.";
-    case "auth/weak-password":           return "A senha deve ter pelo menos 6 caracteres.";
-    case "auth/invalid-credential":      return "E-mail ou senha incorretos.";
-    case "auth/too-many-requests":       return "Muitas tentativas. Tente novamente em alguns minutos.";
-    case "auth/network-request-failed":  return "Erro de rede. Verifique sua conexão.";
-    case "auth/user-disabled":           return "Esta conta foi desativada.";
     default:                             return "Erro na operação. Tente novamente.";
   }
 }

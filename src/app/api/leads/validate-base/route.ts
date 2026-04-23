@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
-import * as admin from "firebase-admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/auth-server";
 
 export async function POST(req: NextRequest) {
@@ -16,23 +15,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Nenhum lead selecionado." }, { status: 400 });
     }
 
-    const batch = adminDb.batch();
-    let count = 0;
-
-    for (const id of ids) {
-      const leadRef = adminDb.collection("leads").doc(id);
-      batch.update(leadRef, { 
+    const { error } = await supabaseAdmin
+      .from("leads")
+      .update({ 
         wa_status: "PENDENTE",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-      count++;
-    }
+        updated_at: new Date().toISOString()
+      })
+      .eq("user_id", userId)
+      .in("id", ids);
 
-    if (count > 0) {
-      await batch.commit();
-    }
+    if (error) throw error;
 
-    return NextResponse.json({ success: true, count });
+    return NextResponse.json({ success: true, count: ids.length });
   } catch (err: any) {
     console.error("[ValidateBase Admin] Erro:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

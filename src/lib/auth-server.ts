@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import * as admin from "firebase-admin";
-import "@/lib/firebase-admin"; // ensure admin is initialized
+import { supabase } from "@/lib/supabase/client";
 
 /**
  * Gets the userId from the Authorization header (Bearer <token>).
@@ -12,12 +11,16 @@ export async function getAuthUserId(req: NextRequest): Promise<string | null> {
     return null;
   }
 
-  const idToken = authHeader.split("Bearer ")[1];
+  const token = authHeader.split("Bearer ")[1];
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    return decodedToken.uid;
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      console.error("Error verifying Supabase token:", error);
+      return null;
+    }
+    return user.id;
   } catch (error) {
-    console.error("Error verifying Firebase ID token:", error);
+    console.error("Auth server error:", error);
     return null;
   }
 }

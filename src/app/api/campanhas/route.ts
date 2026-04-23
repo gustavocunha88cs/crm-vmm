@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getCampanhasAdmin, createCampanhaAdmin } from "@/lib/firebase/collections-admin";
+import { getCampanhas, createCampanha } from "@/lib/supabase/services/campanhas";
 import type { Campanha } from "@/types/campanhas";
 import { getAuthUserId } from "@/lib/auth-server";
 
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const campanhas = await getCampanhasAdmin(userId);
+    const campanhas = await getCampanhas(userId);
     return NextResponse.json({ campanhas });
   } catch (err: unknown) {
     console.error("GET /api/campanhas error:", err);
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const campanha = await createCampanhaAdmin(userId, body);
+    const campanha = await createCampanha(userId, body);
     return NextResponse.json({ campanha }, { status: 201 });
   } catch (err: unknown) {
     console.error("POST /api/campanhas error:", err);
