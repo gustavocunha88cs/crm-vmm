@@ -332,7 +332,7 @@ function getPrevisao() {
                   <img src={mediaUrl} alt="Preview" style={{ maxHeight: '60px', borderRadius: '4px', border: '1px solid var(--border)' }} />
                   <button 
                     onClick={() => setMediaUrl("")}
-                    style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#e87070', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyCenter: 'center' }}
+                    style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#e87070', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     ×
                   </button>
