@@ -80,11 +80,9 @@ export default function CampanhaReportModal({
               </thead>
               <tbody>
                 {items.map((item) => {
-                  const scheduledDate = item.agendadoPara ? (item.agendadoPara.seconds ? item.agendadoPara.seconds * 1000 : item.agendadoPara) : null;
-                  const sentDate = item.enviadoEm ? (item.enviadoEm.seconds ? item.enviadoEm.seconds * 1000 : item.enviadoEm) : null;
-                  
-                  const scheduledTime = scheduledDate ? new Date(scheduledDate).toLocaleString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' }) : "—";
-                  const sentTime = sentDate ? new Date(sentDate).toLocaleString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' }) : "—";
+                  const scheduledTime = item.agendadoPara ? new Date(item.agendadoPara).toLocaleString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' }) : "—";
+                  const sentTime = item.enviadoEm ? new Date(item.enviadoEm).toLocaleString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' }) : "—";
+                  const isSent = !!item.enviadoEm;
                   
                   return (
                     <tr key={item.id}>
@@ -101,7 +99,7 @@ export default function CampanhaReportModal({
                         </span>
                       </td>
                       <td style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>{scheduledTime}</td>
-                      <td style={{ fontSize: '11px', whiteSpace: 'nowrap', fontWeight: sentDate ? 700 : 400 }}>{sentTime}</td>
+                      <td style={{ fontSize: '11px', whiteSpace: 'nowrap', fontWeight: isSent ? 700 : 400 }}>{sentTime}</td>
                     </tr>
                   );
                 })}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getUserInstanceName } from "@/lib/evolution/client";
 
 let EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://127.0.0.1:8080").trim().replace(/\/$/, "");
 
@@ -12,7 +13,6 @@ if (EVOLUTION_API_URL && !EVOLUTION_API_URL.startsWith("http")) {
 }
 
 const EVOLUTION_API_KEY = (process.env.EVOLUTION_API_KEY ?? "BQYHJGJHJ").trim();
-const PREFIX = "crm-vmm-";
 
 export async function GET() {
   try {
@@ -35,7 +35,7 @@ export async function GET() {
     console.log(`[Cron] Processando ${items.length} itens...`);
     
     const results = await Promise.all(items.map(async (item) => {
-      const instanceName = `${PREFIX}${item.user_id.substring(0, 8).toLowerCase()}`;
+      const instanceName = getUserInstanceName(item.user_id);
 
       try {
         // Marca como enviando

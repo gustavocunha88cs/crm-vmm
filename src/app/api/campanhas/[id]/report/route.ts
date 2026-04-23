@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { createClient } from "@/lib/supabase/server";
 import { getAuthUserId } from "@/lib/auth-server";
 
 export async function GET(
@@ -12,24 +12,30 @@ export async function GET(
 
   try {
     const { id } = await params;
+    const supabase = await createClient();
     
-    // Buscar todos os itens da fila para esta campanha com filtro de userId
-    const snap = await adminDb.collection("filaEnvio")
-      .where("userId", "==", userId)
-      .where("campanhaId", "==", id)
-      .get();
+    const { data, error } = await supabase
+      .from("fila_envio")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("campanha_id", id)
+      .order("agendado_para", { ascending: false });
 
-    const results = snap.docs.map(d => ({
-      id: d.id,
-      ...d.data(),
+    if (error) throw error;
+
+    const results = (data || []).map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      campanhaId: row.campanha_id,
+      leadId: row.lead_id,
+      leadNome: row.lead_nome,
+      phone: row.phone,
+      mensagem: row.mensagem,
+      status: row.status,
+      agendadoPara: row.agendado_para,
+      enviadoEm: row.enviado_em,
+      erro: row.erro,
     }));
-
-    // Ordenar no JS para evitar problemas de índice
-    results.sort((a: any, b: any) => {
-        const timeA = a.enviadoEm?.toMillis() || a.agendadoPara?.toMillis() || 0;
-        const timeB = b.enviadoEm?.toMillis() || b.agendadoPara?.toMillis() || 0;
-        return timeB - timeA; // Mais recentes primeiro
-    });
 
     return NextResponse.json({ results });
   } catch (err: unknown) {

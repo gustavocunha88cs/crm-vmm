@@ -150,6 +150,7 @@ export async function startCampanha(
       status: "pendente",
       agendado_para: scheduledDate.toISOString(),
       created_at: now.toISOString(),
+      updated_at: now.toISOString(),
     };
   });
 
