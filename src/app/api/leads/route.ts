@@ -52,10 +52,18 @@ export async function POST(req: NextRequest) {
       batchId
     );
     return NextResponse.json({ ...result, batchId });
-  } catch (err: unknown) {
-    console.error("POST /api/leads error:", err);
-    const message = err instanceof Error ? err.message : "Erro desconhecido";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (err: any) {
+    console.error("POST /api/leads error:", {
+      message: err.message,
+      code: err.code,
+      details: err.details,
+      hint: err.hint
+    });
+    return NextResponse.json({ 
+      error: err.message || "Erro desconhecido",
+      details: err.details,
+      code: err.code
+    }, { status: 500 });
   }
 }
 
