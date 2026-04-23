@@ -1,7 +1,8 @@
-import { supabase } from "../client";
+import { createClient } from "../server";
 import type { Campanha, FilaEnvio } from "@/types/campanhas";
 
 export async function getCampanhas(userId: string): Promise<Campanha[]> {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("campanhas")
     .select("*")
@@ -17,6 +18,7 @@ export async function getCampanhas(userId: string): Promise<Campanha[]> {
 }
 
 export async function createCampanha(userId: string, data: Partial<Campanha>): Promise<Campanha | null> {
+  const supabase = await createClient();
   const { data: created, error } = await supabase
     .from("campanhas")
     .insert([{
@@ -48,6 +50,7 @@ export async function createCampanha(userId: string, data: Partial<Campanha>): P
  * Adiciona leads à fila de envio no Supabase
  */
 export async function addLeadsToQueue(userId: string, items: any[]): Promise<boolean> {
+  // ... (rows mapping same)
   const rows = items.map(item => ({
     user_id: userId,
     campanha_id: item.campanhaId,
@@ -60,6 +63,7 @@ export async function addLeadsToQueue(userId: string, items: any[]): Promise<boo
     agendado_para: item.agendadoPara || new Date().toISOString()
   }));
 
+  const supabase = await createClient();
   const { error } = await supabase.from("fila_envio").insert(rows);
   if (error) {
     console.error("Erro ao adicionar à fila:", error);
@@ -93,6 +97,7 @@ export async function updateCampanha(userId: string, id: string, data: Partial<C
   
   updateData.updated_at = new Date().toISOString();
 
+  const supabase = await createClient();
   await supabase
     .from("campanhas")
     .update(updateData)

@@ -1,10 +1,11 @@
-import { supabase } from "../client";
+import { createClient } from "../server";
 import type { Lead, ScraperLead } from "@/types";
 
 /**
  * Busca todos os leads do usuário, opcionalmente filtrados por tag.
  */
 export async function getLeads(userId: string, tagId?: string): Promise<Lead[]> {
+  const supabase = await createClient();
   let query = supabase
     .from("leads")
     .select("*")
@@ -27,6 +28,7 @@ export async function getLeads(userId: string, tagId?: string): Promise<Lead[]> 
 
 export async function getLeadsByIds(userId: string, ids: string[]): Promise<Lead[]> {
   if (!ids.length) return [];
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("leads")
     .select("*")
@@ -84,6 +86,7 @@ export async function saveLeadsToSupabase(
     }));
 
   if (rows.length > 0) {
+    const supabase = await createClient();
     const { error } = await supabase.from("leads").insert(rows);
     if (error) {
       console.error("Erro ao inserir leads:", error);
@@ -97,6 +100,7 @@ export async function saveLeadsToSupabase(
 
 export async function deleteLeads(ids: string[]): Promise<number> {
   if (!ids.length) return 0;
+  const supabase = await createClient();
   const { error } = await supabase.from("leads").delete().in("id", ids);
   if (error) {
     console.error("Erro ao deletar leads:", error);
@@ -116,6 +120,7 @@ function normalizePhone(raw: string): string {
 }
 
 export async function getTags(userId: string): Promise<any[]> {
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("leads")
     .select("tags")
