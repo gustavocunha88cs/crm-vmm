@@ -1,5 +1,5 @@
 // ─── Campanha ─────────────────────────────────────────────────────────────────
-export type CampanhaStatus = "rascunho" | "ativa" | "pausada" | "concluida";
+export type CampanhaStatus = "rascunho" | "pendente" | "ativa" | "pausada" | "concluida";
 
 export interface Campanha {
   id?: string;
