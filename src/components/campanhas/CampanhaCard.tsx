@@ -15,6 +15,7 @@ interface CampanhaCardProps {
 
 const STATUS_MAP = {
   rascunho:  { label: "Rascunho",  bg: "#F0F0EE", color: "#888",    dot: "#ccc"    },
+  pendente:  { label: "Rascunho",  bg: "#F0F0EE", color: "#888",    dot: "#ccc"    },
   ativa:     { label: "Ativa",     bg: "#E8F2E8", color: "#2A6B2D", dot: "#4CAF50" },
   pausada:   { label: "Pausada",   bg: "#FFF7E0", color: "#7A5C00", dot: "#F5A623" },
   concluida: { label: "Concluída", bg: "#E8EFF8", color: "#1E4A8A", dot: "#4A90D9" },
@@ -61,7 +62,7 @@ export default function CampanhaCard({
           {st.label}
         </div>
         <div className="cc-actions">
-          {(campanha.status === "rascunho" || campanha.status === "pausada") && (
+          {(campanha.status === "rascunho" || campanha.status === "pendente" || campanha.status === "pausada") && (
             <button
               className="cc-action-btn cc-action-start"
               onClick={() => onStart(campanha.id!)}
