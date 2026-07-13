@@ -464,11 +464,12 @@ export default function ImportLeadsModal({
                   value={maxPer}
                   onChange={(e) => setMaxPer(Number(e.target.value))}
                 >
-                  {[10, 20, 30, 50].map((v) => (
+                  {[20, 30, 50, 100, 200].map((v) => (
                     <option key={v} value={v}>{v} leads</option>
                   ))}
                 </select>
               </div>
+
 
               <div className="vmm-field" style={{ flex: 2 }}>
                 <label className="vmm-label">Enriquecimento</label>

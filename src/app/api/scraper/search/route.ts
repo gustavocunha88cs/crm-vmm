@@ -85,53 +85,71 @@ interface Lead {
 
 // ─── SerpAPI call ─────────────────────────────────────────────────────────────
 async function searchGoogleMaps(query: string, limit: number): Promise<Lead[]> {
-  const params = new URLSearchParams({
-    engine:  "google_maps",
-    q:       query,
-    type:    "search",
-    hl:      "pt",
-    gl:      "br",
-    api_key: SERP_API_KEY!,
-  });
+  const allResults: any[] = [];
+  let start = 0;
 
-  const url = `https://serpapi.com/search.json?${params}`;
+  while (allResults.length < limit) {
+    const params = new URLSearchParams({
+      engine:  "google_maps",
+      q:       query,
+      type:    "search",
+      hl:      "pt",
+      gl:      "br",
+      api_key: SERP_API_KEY!,
+      start:   start.toString()
+    });
 
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(30_000),
-  });
+    const url = `https://serpapi.com/search.json?${params}`;
 
-  // Lê o corpo como texto primeiro para diagnóstico
-  const text = await res.text();
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(30_000),
+    });
 
-  // Verifica se é HTML (erro de autenticação ou página de erro)
-  if (text.trim().startsWith("<")) {
-    throw new Error(`SerpAPI retornou HTML (HTTP ${res.status}). Verifique sua SERPAPI_KEY.`);
+    const text = await res.text();
+
+    if (text.trim().startsWith("<")) {
+      throw new Error(`SerpAPI retornou HTML (HTTP ${res.status}). Verifique sua SERPAPI_KEY.`);
+    }
+
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`Resposta inválida da SerpAPI: ${text.slice(0, 100)}`);
+    }
+
+    if (data.error) {
+      if (allResults.length > 0) break;
+      throw new Error(`SerpAPI: ${data.error}`);
+    }
+
+    if (!res.ok) {
+      if (allResults.length > 0) break;
+      throw new Error(`SerpAPI HTTP ${res.status}`);
+    }
+
+    const pageResults: any[] = data.local_results ?? [];
+    if (pageResults.length === 0) {
+      break;
+    }
+
+    allResults.push(...pageResults);
+
+    if (pageResults.length < 20) {
+      break;
+    }
+
+    start += 20;
+    
+    // Pequena pausa para evitar rate limit
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
 
-  // Tenta parsear JSON
-  let data: any;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error(`Resposta inválida da SerpAPI: ${text.slice(0, 100)}`);
-  }
-
-  // Erro retornado pela própria SerpAPI
-  if (data.error) {
-    throw new Error(`SerpAPI: ${data.error}`);
-  }
-
-  if (!res.ok) {
-    throw new Error(`SerpAPI HTTP ${res.status}`);
-  }
-
-  const results: any[] = data.local_results ?? [];
-
-  if (results.length === 0) {
+  if (allResults.length === 0) {
     console.log(`SerpAPI: nenhum resultado para "${query}"`);
   }
 
-  return results.slice(0, limit).map((r: any) => {
+  return allResults.slice(0, limit).map((r: any) => {
     const { city, state } = parseAddress(r.address ?? "");
     const phone = normalizePhone(r.phone ?? "");
 

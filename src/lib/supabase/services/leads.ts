@@ -87,12 +87,31 @@ export async function saveLeadsToSupabase(
 
   if (rows.length > 0) {
     const supabase = await createClient();
-    const { error } = await supabase.from("leads").insert(rows);
-    if (error) {
-      console.error("Erro ao inserir leads:", error);
-      throw error;
+    const phones = rows.map(r => r.phone);
+
+    const { data: existingLeads, error: checkError } = await supabase
+      .from("leads")
+      .select("phone")
+      .eq("user_id", userId)
+      .in("phone", phones);
+
+    if (checkError) {
+      console.error("Erro ao checar duplicados:", checkError);
+      throw checkError;
     }
-    saved = rows.length;
+
+    const existingPhones = new Set(existingLeads?.map(l => l.phone) || []);
+    const uniqueRows = rows.filter(r => !existingPhones.has(r.phone));
+    skipped += (rows.length - uniqueRows.length);
+
+    if (uniqueRows.length > 0) {
+      const { error } = await supabase.from("leads").insert(uniqueRows);
+      if (error) {
+        console.error("Erro ao inserir leads:", error);
+        throw error;
+      }
+      saved = uniqueRows.length;
+    }
   }
 
   return { saved, skipped };

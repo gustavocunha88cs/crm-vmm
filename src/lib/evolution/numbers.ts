@@ -1,12 +1,14 @@
 import { getEvolutionConfig } from "./client";
-import { adminDb } from "../firebase-admin";
-import * as admin from "firebase-admin";
 
 export interface WhatsAppNumberResult {
   exists: boolean;
   jid: string;
   number: string;
 }
+
+// In-memory circuit breaker state
+let cooldownUntil: Date | null = null;
+let lastErrorAt: Date | null = null;
 
 /**
  * Validação de Sintaxe (Regex) - Formato Internacional
@@ -26,36 +28,22 @@ export function validatePhoneSyntax(phone: string): boolean {
  * Verifica se a API está em cooldown por segurança (Circuit Breaker)
  */
 async function checkCircuitBreaker(): Promise<boolean> {
-  try {
-    const safetyRef = adminDb.collection("settings").doc("evolution_safety");
-    const snap = await safetyRef.get();
-    if (!snap.exists) return true;
-
-    const data = snap.data();
-    if (data?.cooldownUntil && new Date(data.cooldownUntil) > new Date()) {
-      console.warn(`[CircuitBreaker Admin] API em repouso até ${data.cooldownUntil}`);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error(`[CircuitBreaker Admin] Erro:`, err);
-    return true; // Prossegue mesmo com erro de leitura nas settings
+  if (cooldownUntil && cooldownUntil > new Date()) {
+    console.warn(`[CircuitBreaker Admin] API em repouso até ${cooldownUntil.toISOString()}`);
+    return false;
   }
+  return true;
 }
 
 /**
  * Ativa o repouso forçado da API
  */
 async function triggerCircuitBreaker() {
-  try {
-    const safetyRef = adminDb.collection("settings").doc("evolution_safety");
-    const cooldownUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min
-    await safetyRef.set({ cooldownUntil, lastErrorAt: new Date().toISOString() }, { merge: true });
-    console.error(`[CircuitBreaker Admin] Muitas falhas. API suspensa por 30 minutos.`);
-  } catch (err) {
-    console.error(`[CircuitBreaker Admin] Falha ao acionar CB:`, err);
-  }
+  cooldownUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 min
+  lastErrorAt = new Date();
+  console.error(`[CircuitBreaker Admin] Muitas falhas. API suspensa por 30 minutos até ${cooldownUntil.toISOString()}`);
 }
+
 
 /**
  * Consulta a Evolution API para checar se o número tem WhatsApp (Multi-tenant)
